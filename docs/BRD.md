@@ -26,6 +26,8 @@ Out of scope for now: a full drag-and-drop design engine on par with Custom Ink/
 
 ## 5. Functional Requirements
 
+a user should be able to use the site as a guest user, or register/sign up or login to an existing account. so the user can see their profile, transaction history, provide feedack
+
 Store section: curated grid of ready-made designs with imagery, name, and price. Each product allows size and quantity selection and add-to-cart. Catalog-driven so new drops are easy to add.
 
 Design Studio: customer picks a plain garment and color, then selects a design from the owner-managed library. The chosen design renders onto a garment mockup for a realistic as-printed preview that updates live. Customer can optionally activate the device camera for a try-on and capture the look, then select size and quantity and add the custom piece to the same cart as store items.
