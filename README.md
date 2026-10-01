@@ -75,7 +75,9 @@ Domain portability: no absolute URLs hardcoded; the public base URL is read from
 
 ### 8. Accounts, Credentials, and Responsibility Split
 
+<!--
 Performed by the owner only (cannot be delegated to the AI contributor): creating the GitHub repo; creating Vercel, Supabase, and Stripe accounts; purchasing/configuring the custom domain; entering all secret keys, banking, and KYC/identity info; setting up admin login credentials.
+-->
 
 AI contributor role: write application and integration code, open pull requests for review, and set up `.env.example` placeholders plus docs for where keys go. Never handles live credentials, payment details, account creation, or admin passwords. All secrets are stored as environment variables in Vercel/Supabase and never committed to the repo.
 
