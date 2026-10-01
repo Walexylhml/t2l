@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useCart } from "@/components/cart-provider"
+import { useCart } from "@/components/cart/cart-provider"
 import { formatPrice } from "@/lib/products"
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
