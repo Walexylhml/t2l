@@ -8,6 +8,7 @@ import { Wordmark } from './wordmark'
 import { MobileNav } from './mobile-nav'
 import { CartButton } from '@/components/cart/cart-button'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
+import { AccountLink } from './account-link'
 
 export function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -55,6 +56,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-1">
+          <AccountLink />
           <ThemeToggle />
           <CartButton />
         </div>
