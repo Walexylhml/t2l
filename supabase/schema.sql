@@ -11,21 +11,21 @@ create extension if not exists "pgcrypto";
 -- One row per order. Guests are allowed: user_id is nullable and is filled in
 -- later when a user signs up with the same (verified) email.
 create table if not exists public.orders (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users (id) on delete set null,
-  email text not null,
-  phone text,
-  full_name text,
-  shipping_address jsonb,
-  status text not null default 'pending',
-  amount_total integer not null default 0,
-  currency text not null default 'usd',
-  stripe_session_id text unique,
-  stripe_payment_intent text,
-  claimed_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-  );
+id uuid primary key default gen_random_uuid(),
+user_id uuid references auth.users (id) on delete set null,
+email text not null,
+phone text,
+full_name text,
+shipping_address jsonb,
+status text not null default 'pending',
+amount_total integer not null default 0,
+currency text not null default 'usd',
+stripe_session_id text unique,
+stripe_payment_intent text,
+claimed_at timestamptz,
+created_at timestamptz not null default now(),
+updated_at timestamptz not null default now()
+);
 
 -- Store email lowercased so claiming matches reliably.
 create unique index if not exists orders_stripe_session_idx on public.orders (stripe_session_id);
@@ -34,17 +34,17 @@ create index if not exists orders_user_id_idx on public.orders (user_id);
 
 -- Order items --------------------------------------------------------------
 create table if not exists public.order_items (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.orders (id) on delete cascade,
-  product_id text not null,
-  slug text,
-  name text not null,
-  size text,
-  image text,
-  unit_amount integer not null,
-  quantity integer not null default 1,
-  created_at timestamptz not null default now()
-  );
+id uuid primary key default gen_random_uuid(),
+order_id uuid not null references public.orders (id) on delete cascade,
+product_id text not null,
+slug text,
+name text not null,
+size text,
+image text,
+unit_amount integer not null,
+quantity integer not null default 1,
+created_at timestamptz not null default now()
+);
 
 create index if not exists order_items_order_id_idx on public.order_items (order_id);
 
@@ -114,6 +114,69 @@ after update on auth.users
 for each row execute function public.claim_orders_for_user();
 
 -- =========================================================================
+-- Profiles
+-- One row per auth user, holding the display info we collect at sign-up
+-- (name + phone). A trigger creates the row automatically from the sign-up
+-- metadata (supabase.auth.signUp -> options.data), so no extra client call
+-- is needed. Each user can read and update only their own profile.
+-- =========================================================================
+create table if not exists public.profiles (
+id uuid primary key references auth.users (id) on delete cascade,
+full_name text,
+phone text,
+created_at timestamptz not null default now(),
+updated_at timestamptz not null default now()
+);
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+before update on public.profiles
+for each row execute function public.set_updated_at();
+
+-- Create a profile row whenever a new auth user is created, copying the
+-- name/phone passed in the sign-up metadata.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+insert into public.profiles (id, full_name, phone)
+values (
+new.id,
+nullif(new.raw_user_meta_data ->> 'full_name', ''),
+nullif(new.raw_user_meta_data ->> 'phone', '')
+)
+on conflict (id) do nothing;
+return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user();
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles_select_own" on public.profiles;
+create policy "profiles_select_own"
+on public.profiles for select
+using (auth.uid() = id);
+
+drop policy if exists "profiles_insert_own" on public.profiles;
+create policy "profiles_insert_own"
+on public.profiles for insert
+with check (auth.uid() = id);
+
+drop policy if exists "profiles_update_own" on public.profiles;
+create policy "profiles_update_own"
+on public.profiles for update
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+-- =========================================================================
 -- Row level security
 -- Writes happen server-side with the service role key (bypasses RLS).
 -- These policies let a signed-in user read ONLY their own claimed orders.
@@ -130,8 +193,8 @@ drop policy if exists "order_items_select_own" on public.order_items;
 create policy "order_items_select_own"
 on public.order_items for select
 using (
-  exists (
-  select 1 from public.orders o
-  where o.id = order_items.order_id and o.user_id = auth.uid()
-  )
-  );
+exists (
+select 1 from public.orders o
+where o.id = order_items.order_id and o.user_id = auth.uid()
+)
+);

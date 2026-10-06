@@ -10,11 +10,19 @@ type Mode = "signin" | "signup"
 export default function LoginPage() {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>("signin")
+  const [fullName, setFullName] = useState("")
+  const [phone, setPhone] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+
+  function switchMode(next: Mode) {
+    setMode(next)
+    setError(null)
+    setNotice(null)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -30,6 +38,12 @@ export default function LoginPage() {
           email,
           password,
           options: {
+            // Saved into the auth user's metadata and copied into the
+            // public.profiles row by the on_auth_user_created DB trigger.
+            data: {
+              full_name: fullName.trim(),
+              phone: phone.trim() || null,
+            },
             emailRedirectTo:
               typeof window !== "undefined"
                 ? window.location.origin + "/account"
@@ -68,6 +82,37 @@ export default function LoginPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
+        {mode === "signup" ? (
+          <>
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-medium">Full name</span>
+              <input
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                autoComplete="name"
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Your name"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-medium">
+                Phone <span className="font-normal text-muted-foreground">(optional)</span>
+              </span>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                autoComplete="tel"
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="+1 555 000 0000"
+              />
+            </label>
+          </>
+        ) : null}
+
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">Email</span>
           <input
@@ -115,11 +160,7 @@ export default function LoginPage() {
         {mode === "signin" ? (
           <button
             type="button"
-            onClick={() => {
-              setMode("signup")
-              setError(null)
-              setNotice(null)
-            }}
+            onClick={() => switchMode("signup")}
             className="underline underline-offset-4 hover:text-foreground"
           >
             New here? Create an account
@@ -127,11 +168,7 @@ export default function LoginPage() {
         ) : (
           <button
             type="button"
-            onClick={() => {
-              setMode("signin")
-              setError(null)
-              setNotice(null)
-            }}
+            onClick={() => switchMode("signin")}
             className="underline underline-offset-4 hover:text-foreground"
           >
             Already have an account? Sign in

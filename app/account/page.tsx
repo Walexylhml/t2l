@@ -38,6 +38,7 @@ export default function AccountPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState<string | null>(null)
+  const [fullName, setFullName] = useState<string | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -56,6 +57,20 @@ export default function AccountPage() {
         }
 
         if (active) setEmail(session.user.email ?? null)
+
+        // Load the profile (name/phone collected at sign-up). Falls back to
+        // the auth metadata if the profiles row hasn't been created yet.
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, phone")
+          .eq("id", session.user.id)
+          .maybeSingle()
+
+        if (active) {
+          const metaName =
+            (session.user.user_metadata?.full_name as string | undefined) ?? null
+          setFullName(profile?.full_name ?? metaName)
+        }
 
         const { data, error: ordersError } = await supabase
           .from("orders")
@@ -98,11 +113,15 @@ export default function AccountPage() {
     )
   }
 
+  const firstName = fullName ? fullName.trim().split(/\s+/)[0] : null
+
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-16">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Your account</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {firstName ? `Welcome back, ${firstName}` : "Your account"}
+          </h1>
           {email ? (
             <p className="mt-1 text-sm text-muted-foreground">Signed in as {email}</p>
           ) : null}
