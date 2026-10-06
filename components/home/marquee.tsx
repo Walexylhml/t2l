@@ -1,10 +1,10 @@
 const PHRASES = [
-  'Horror Heads',
   'Pop Culture',
   'Social Cause',
   'Custom Prints',
   'Heavyweight Cotton',
   'Small Batch',
+  'Horror Heads',
 ]
 
 export function Marquee() {

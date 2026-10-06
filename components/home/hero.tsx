@@ -38,8 +38,9 @@ export function Hero() {
           Wear Your Thoughts. <span className="text-chrome">Live Your Life.</span>
         </h1>
         <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-foreground/80">
-          Heavyweight streetwear for horror heads, pop-culture obsessives, and anyone with
-          something to say. Shop the latest drop or put your own idea on cotton.
+          Heavyweight streetwear for pop-culture obsessives, social causes, original designs,
+          and horror heads — anyone with something to say. Shop the latest drop or put your own
+          idea on cotton.
         </p>
         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
           <Link href="/store" className={pillClass({ size: 'lg' })}>
