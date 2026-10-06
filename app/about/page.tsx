@@ -26,8 +26,7 @@ export default function AboutPage() {
         </p>
 
         <p>
-          Whether you’re grabbing the latest drop, creating a custom piece, or pulling up to a local pop-up, 
-          the mission stays the same:
+          Whether you’re grabbing the latest drop, creating a custom piece, or pulling up to a local pop-up, the mission stays the same.
         </p>
 
         <p className="text-lg font-semibold text-foreground">Wear your thoughts. Live your life.</p>
