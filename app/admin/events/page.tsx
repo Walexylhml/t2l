@@ -259,21 +259,20 @@ export default function AdminEventsPage() {
                   </div>
                 )}
                 <div className="flex flex-col gap-1">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploading}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleImageUpload(file)
-                    }}
-                    className="text-sm"
-                  />
-                  {uploading ? (
-                    <span className="text-xs text-muted-foreground">Uploading...</span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">The designed event flyer.</span>
-                  )}
+                  <label className="inline-flex w-fit cursor-pointer items-center justify-center rounded-full bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90">
+                    {uploading ? "Uploading..." : form.image ? "Change image" : "Choose image"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleImageUpload(file)
+                      }}
+                      className="sr-only"
+                    />
+                  </label>
+                  <span className="text-xs text-muted-foreground">The designed event flyer.</span>
                 </div>
               </div>
             </div>
