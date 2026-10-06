@@ -4,10 +4,10 @@ export const SIZES = ["S", "M", "L", "XL", "2XL"] as const
 export type Size = (typeof SIZES)[number]
 
 export const CATEGORIES = [
-  { slug: "horror", label: "Horror" },
   { slug: "pop-culture", label: "Pop Culture" },
   { slug: "social-cause", label: "Social Cause" },
   { slug: "originals", label: "Originals" },
+  { slug: "horror", label: "Horror" },
 ] as const
 export type CategorySlug = (typeof CATEGORIES)[number]["slug"]
 
