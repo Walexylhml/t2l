@@ -62,6 +62,13 @@ function formatEventDate(iso: string | null): string {
   })
 }
 
+// True when the event's date/time is in the past.
+function isPast(iso: string | null): boolean {
+  if (!iso) return false
+  const d = new Date(iso)
+  return !Number.isNaN(d.getTime()) && d.getTime() < Date.now()
+}
+
 export default function AdminEventsPage() {
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<EventRow[]>([])
@@ -367,6 +374,11 @@ export default function AdminEventsPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{ev.title}</span>
+                  {isPast(ev.event_at) ? (
+                    <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400">
+                      Past
+                    </span>
+                  ) : null}
                   {!ev.active ? (
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       Hidden
