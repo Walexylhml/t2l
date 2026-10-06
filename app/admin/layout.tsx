@@ -8,6 +8,8 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser"
 const TABS = [
   { href: "/admin", label: "Orders" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/garments", label: "Garments" },
+  { href: "/admin/designs", label: "Designs" },
   { href: "/admin/events", label: "Events" },
   { href: "/admin/discounts", label: "Discounts" },
 ]
