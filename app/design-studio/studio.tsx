@@ -75,6 +75,7 @@ export function Studio() {
   const [placements, setPlacements] = useState<Placements>(emptyPlacements())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
 
   const stageRef = useRef<HTMLDivElement>(null)
   const stageWidthRef = useRef<number>(400)
@@ -126,14 +127,27 @@ export function Studio() {
   const mockup =
     garment && (view === "front" ? garment.imageFront : view === "back" ? garment.imageBack : garment.imageArm)
 
+  const q = search.trim().toLowerCase()
   const visibleDesigns = designs.filter((d) => {
-    if (filter === "all") return true
-    return d.placement === filter || d.placement === "any"
+    const okFilter = filter === "all" ? true : d.placement === filter || d.placement === "any"
+    const okSearch = q === "" ? true : d.name.toLowerCase().includes(q)
+    return okFilter && okSearch
   })
 
   function addLayer(layer: Omit<PlacedLayer, "id">) {
     const id = uid()
-    setPlacements((prev) => ({ ...prev, [view]: [...prev[view], { ...layer, id }] }))
+    setPlacements((prev) => {
+      // Stagger each new layer slightly so they don't stack exactly on top
+      // of each other (which made them hard to select/delete).
+      const off = (prev[view].length % 6) * 3
+      const placed: PlacedLayer = {
+        ...layer,
+        id,
+        xPct: clamp(layer.xPct + off, 4, 96),
+        yPct: clamp(layer.yPct + off, 4, 96),
+      }
+      return { ...prev, [view]: [...prev[view], placed] }
+    })
     setSelectedId(id)
   }
 
@@ -268,6 +282,22 @@ export function Studio() {
     }
   }, [onPointerMove, endGesture])
 
+  // Delete / Backspace removes the selected layer (unless typing in a field).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!selectedId) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault()
+        removeLayer(selectedId)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, view])
+
   const price = garment
     ? computePrice(garment.basePrice, placements, settings)
     : null
@@ -344,9 +374,21 @@ export function Studio() {
           <button
             type="button"
             onClick={() => setGarment(null)}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
-            ← All garments
+            <svg
+              viewBox="0 0 20 20"
+              className="size-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 5l-5 5 5 5" />
+            </svg>
+            All garments
           </button>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{garment.name}</h1>
         </div>
@@ -429,6 +471,7 @@ export function Studio() {
                 <div
                   key={l.id}
                   onPointerDown={(e) => startGesture(e, l, "move")}
+                  onClick={(e) => e.stopPropagation()}
                   className="absolute cursor-move"
                   style={{
                     left: `${l.xPct}%`,
@@ -500,37 +543,79 @@ export function Studio() {
 
         {/* Controls ----------------------------------------------------- */}
         <div className="flex flex-col gap-5">
-          {/* Selected text editing */}
-          {selected && selected.kind === "text" ? (
+          {/* Selected layer controls */}
+          {selected ? (
             <div className="rounded-xl border border-border p-3">
-              <h3 className="text-sm font-semibold">Text</h3>
-              <input
-                className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={selected.text ?? ""}
-                onChange={(e) => updateSelected({ text: e.target.value })}
-              />
-              <div className="mt-2 flex items-center gap-3">
-                <label className="flex items-center gap-2 text-xs">
-                  Color
-                  <input
-                    type="color"
-                    value={selected.color ?? "#111111"}
-                    onChange={(e) => updateSelected({ color: e.target.value })}
-                    className="h-7 w-10 rounded border border-border bg-background"
-                  />
-                </label>
-                <select
-                  className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none"
-                  value={selected.fontFamily}
-                  onChange={(e) => updateSelected({ fontFamily: e.target.value })}
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">
+                  {selected.kind === "text" ? "Text" : "Selected design"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => removeLayer(selected.id)}
+                  className="rounded-full border border-border px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
                 >
-                  {FONT_OPTIONS.map((f) => (
-                    <option key={f.label} value={f.value}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
+                  Delete
+                </button>
               </div>
+
+              {selected.kind === "text" ? (
+                <>
+                  <input
+                    className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={selected.text ?? ""}
+                    onChange={(e) => updateSelected({ text: e.target.value })}
+                  />
+                  <div className="mt-2 flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs">
+                      Color
+                      <input
+                        type="color"
+                        value={selected.color ?? "#111111"}
+                        onChange={(e) => updateSelected({ color: e.target.value })}
+                        className="h-7 w-10 rounded border border-border bg-background"
+                      />
+                    </label>
+                    <select
+                      className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none"
+                      value={selected.fontFamily}
+                      onChange={(e) => updateSelected({ fontFamily: e.target.value })}
+                    >
+                      {FONT_OPTIONS.map((f) => (
+                        <option key={f.label} value={f.value}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : null}
+
+              <label className="mt-3 block text-xs text-muted-foreground">
+                Size
+                <input
+                  type="range"
+                  min={6}
+                  max={100}
+                  value={Math.round(selected.widthPct)}
+                  onChange={(e) => updateSelected({ widthPct: Number(e.target.value) })}
+                  className="mt-1 w-full"
+                />
+              </label>
+              <label className="mt-2 block text-xs text-muted-foreground">
+                Rotation
+                <input
+                  type="range"
+                  min={-180}
+                  max={180}
+                  value={Math.round(selected.rotation)}
+                  onChange={(e) => updateSelected({ rotation: Number(e.target.value) })}
+                  className="mt-1 w-full"
+                />
+              </label>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Tip: drag on the shirt to move, or press Delete to remove.
+              </p>
             </div>
           ) : null}
 
@@ -562,27 +647,44 @@ export function Studio() {
                 </button>
               ))}
             </div>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search designs..."
+              className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
             {visibleDesigns.length === 0 ? (
               <p className="mt-3 text-xs text-muted-foreground">
-                No designs in this filter yet.
+                {designs.length === 0 ? "No designs added yet." : "No designs match this filter."}
               </p>
             ) : (
-              <div className="mt-3 grid max-h-64 grid-cols-3 gap-2 overflow-y-auto">
-                {visibleDesigns.map((d) => (
-                  <button
-                    key={d.id}
-                    type="button"
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("text/design-id", d.id)}
-                    onClick={() => addDesignCentered(d)}
-                    title={`${d.name} — drag onto the shirt or click to add`}
-                    className="flex aspect-square items-center justify-center rounded-lg border border-border p-1 hover:border-foreground/40"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={d.image} alt={d.name} className="max-h-full max-w-full object-contain" />
-                  </button>
-                ))}
-              </div>
+              <>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {visibleDesigns.length} design{visibleDesigns.length === 1 ? "" : "s"}
+                </p>
+                <div className="mt-1 grid max-h-72 grid-cols-3 gap-2 overflow-y-auto">
+                  {visibleDesigns.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("text/design-id", d.id)}
+                      onClick={() => addDesignCentered(d)}
+                      title={`${d.name} — drag onto the shirt or click to add`}
+                      className="flex aspect-square items-center justify-center rounded-lg border border-border p-1 hover:border-foreground/40"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={d.image}
+                        alt={d.name}
+                        loading="lazy"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
