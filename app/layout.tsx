@@ -30,9 +30,9 @@ export const metadata: Metadata = {
     'graphic tees',
     'hoodies',
     'custom apparel',
-    'horror merch',
     'pop culture apparel',
     'social cause clothing',
+    'horror merch',
   ],
   openGraph: {
     type: 'website',
