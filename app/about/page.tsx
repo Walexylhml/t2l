@@ -14,27 +14,20 @@ export default function AboutPage() {
 
       <div className="mt-8 space-y-6 text-base leading-relaxed text-muted-foreground">
         <p>
-          Thoughts2Lyfe is a custom-apparel brand built on one simple idea: what you think about,
-          you bring to life. We turn thoughts — bold, personal, a little loud — into heavyweight
-          streetwear you actually want to wear.
+          Thoughts2Lyfe started with a simple belief: what you think about, you bring to life. 
+          We take bold, personal, unfiltered thoughts and turn them into heavyweight streetwear 
+          you’ll actually want to wear every day.
         </p>
 
         <p>
-          We started on Instagram, printing boutique pieces and designing live at events, and grew
-          into a brand known for graphics that span horror, pop-culture, and originals: the stuff
-          that says what you&apos;re thinking before you have to.
+          Beyond the prints, we’re deeply rooted in community. Many of our drops support causes close 
+          to our heart—from mental health and suicide prevention to breast cancer awareness and LGBTQ+ 
+          history. Every piece has a reason, and every design starts a conversation on your terms.
         </p>
 
         <p>
-          But Thoughts2Lyfe has always been about more than a good print. So much of what we make is
-          cause-driven — drops and campaigns for mental health and suicide prevention, breast cancer
-          awareness, LGBTQ+ history, and the communities we&apos;re part of. Some pieces give back;
-          all of them start a conversation. Your terms, your story.
-        </p>
-
-        <p>
-          Today you can shop the latest drop, design your own piece, and catch us at pop-ups and
-          event activations. However you wear it, the mantra stays the same.
+          Whether you’re grabbing the latest drop, creating a custom piece, or pulling up to a local pop-up, 
+          the mission stays the same:
         </p>
 
         <p className="text-lg font-semibold text-foreground">Wear your thoughts. Live your life.</p>
