@@ -8,6 +8,7 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser"
 const TABS = [
   { href: "/admin", label: "Orders" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/discounts", label: "Discounts" },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
