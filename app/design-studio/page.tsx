@@ -1,14 +1,13 @@
-import type { Metadata } from 'next'
-import { ComingSoon } from '@/components/coming-soon'
+import type { Metadata } from "next"
+import { Studio } from "./studio"
 
-export const metadata: Metadata = { title: 'Design Studio' }
+export const metadata: Metadata = {
+  title: "Design Studio",
+  description:
+    "Design your own Thoughts2Lyfe piece — pick a blank, drop designs and text on the front, back, or arm, and see the price as you go.",
+  alternates: { canonical: "/design-studio" },
+}
 
 export default function DesignStudioPage() {
-  return (
-    <ComingSoon
-      eyebrow="Design Studio"
-      title="Your idea. Our press."
-      description="The Design Studio is being built right now. Soon you'll be able to upload your own art or remix designs from our library and put them on any blank."
-    />
-  )
+  return <Studio />
 }
