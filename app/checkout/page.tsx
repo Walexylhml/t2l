@@ -4,8 +4,11 @@ import { useState } from "react"
 import Link from "next/link"
 import { useCart } from "@/components/cart/cart-provider"
 import { formatPrice } from "@/lib/products"
+import { getSupabaseBrowser } from "@/lib/supabase-browser"
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+type AppliedDiscount = { code: string; type: "percent" | "fixed"; value: number }
 
 export default function CheckoutPage() {
   const { items, subtotal, clearCart } = useCart()
@@ -21,6 +24,18 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [promoInput, setPromoInput] = useState("")
+  const [applied, setApplied] = useState<AppliedDiscount | null>(null)
+  const [promoMsg, setPromoMsg] = useState<string | null>(null)
+  const [promoBusy, setPromoBusy] = useState(false)
+
+  const discountAmount = applied
+    ? applied.type === "percent"
+      ? Math.round((subtotal * applied.value) / 100)
+      : Math.min(subtotal, applied.value)
+    : 0
+  const total = Math.max(0, subtotal - discountAmount)
+
   const emailValid = EMAIL_RE.test(email)
   const canSubmit =
     emailValid &&
@@ -31,6 +46,39 @@ export default function CheckoutPage() {
     country.trim().length > 0 &&
     items.length > 0 &&
     !submitting
+
+  async function applyPromo() {
+    const code = promoInput.trim().toUpperCase().replace(/\s+/g, "")
+    setPromoMsg(null)
+    if (!code) return
+    setPromoBusy(true)
+    try {
+      const supabase = getSupabaseBrowser()
+      const { data } = await supabase
+        .from("discounts")
+        .select("code, type, value, active")
+        .eq("code", code)
+        .maybeSingle()
+      if (data && data.active) {
+        setApplied({ code: data.code, type: data.type, value: data.value })
+        setPromoMsg(null)
+      } else {
+        setApplied(null)
+        setPromoMsg("That code isn't valid.")
+      }
+    } catch {
+      setApplied(null)
+      setPromoMsg("Couldn't check that code. Try again.")
+    } finally {
+      setPromoBusy(false)
+    }
+  }
+
+  function removePromo() {
+    setApplied(null)
+    setPromoInput("")
+    setPromoMsg(null)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -57,6 +105,7 @@ export default function CheckoutPage() {
             unitAmount: i.price,
             quantity: i.quantity,
           })),
+          discountCode: applied?.code,
         }),
       })
       const data = await res.json()
@@ -195,9 +244,58 @@ export default function CheckoutPage() {
               </li>
             ))}
           </ul>
-          <div className="mt-6 flex justify-between border-t pt-4 font-semibold">
-            <span>Subtotal</span>
-            <span>{formatPrice(subtotal)}</span>
+
+          <div className="mt-6 border-t pt-4">
+            <label className="text-sm font-medium">Promo code</label>
+            {applied ? (
+              <div className="mt-2 flex items-center justify-between gap-3 rounded-md bg-muted px-3 py-2 text-sm">
+                <span>
+                  <span className="font-mono font-medium">{applied.code}</span> applied
+                </span>
+                <button
+                  type="button"
+                  onClick={removePromo}
+                  className="text-xs underline underline-offset-2 hover:no-underline"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={promoInput}
+                  onChange={(e) => setPromoInput(e.target.value)}
+                  className="w-full rounded-md border px-3 py-2 text-sm"
+                  placeholder="Enter code"
+                />
+                <button
+                  type="button"
+                  onClick={applyPromo}
+                  disabled={promoBusy || !promoInput.trim()}
+                  className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  {promoBusy ? "..." : "Apply"}
+                </button>
+              </div>
+            )}
+            {promoMsg ? <p className="mt-2 text-xs text-red-600">{promoMsg}</p> : null}
+          </div>
+
+          <div className="mt-6 space-y-2 border-t pt-4 text-sm">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>{formatPrice(subtotal)}</span>
+            </div>
+            {applied ? (
+              <div className="flex justify-between text-emerald-600">
+                <span>Discount ({applied.code})</span>
+                <span>-{formatPrice(discountAmount)}</span>
+              </div>
+            ) : null}
+            <div className="flex justify-between border-t pt-2 text-base font-semibold">
+              <span>Total</span>
+              <span>{formatPrice(total)}</span>
+            </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
             Shipping &amp; taxes calculated at payment.
