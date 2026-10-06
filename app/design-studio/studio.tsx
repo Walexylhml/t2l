@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import dynamic from "next/dynamic"
 import { formatPrice } from "@/lib/products"
 import {
   getGarments,
@@ -20,6 +21,27 @@ import {
   type PlacedLayer,
   type Placements,
 } from "@/lib/studio"
+
+// three.js lives only in the 3D preview; load it on demand (client-only) so it
+// stays out of the initial bundle and never runs during SSR.
+const Preview3D = dynamic(() => import("./preview3d").then((m) => m.Preview3D), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      Loading 3D preview...
+    </div>
+  ),
+})
+
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => resolve(img)
+    img.onerror = () => resolve(null)
+    img.src = src
+  })
+}
 
 const FILTERS: ("all" | GarmentView)[] = ["all", "front", "back", "arm"]
 const FONT_OPTIONS = [
@@ -76,6 +98,11 @@ export function Studio() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [mode, setMode] = useState<"edit" | "preview">("edit")
+  const [preview, setPreview] = useState<{ front: string | null; back: string | null }>({
+    front: null,
+    back: null,
+  })
 
   const stageRef = useRef<HTMLDivElement>(null)
   const stageWidthRef = useRef<number>(400)
@@ -204,6 +231,45 @@ export function Studio() {
     setSelectedId((cur) => (cur === id ? null : cur))
   }
 
+  // Flatten a view's layers to a transparent PNG data URL for the 3D preview.
+  // Mirrors the 2D stage (4:5). Returns null if an image can't be read
+  // cross-origin (then the preview just shows the garment without art).
+  async function compositeView(v: GarmentView): Promise<string | null> {
+    const W = 640
+    const H = 800
+    const canvas = document.createElement("canvas")
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return null
+    for (const l of placements[v]) {
+      ctx.save()
+      ctx.translate((l.xPct / 100) * W, (l.yPct / 100) * H)
+      ctx.rotate((l.rotation * Math.PI) / 180)
+      if (l.kind === "design" && l.image) {
+        const img = await loadImage(l.image)
+        if (img && img.width) {
+          const w = (l.widthPct / 100) * W
+          const h = w * (img.height / img.width)
+          ctx.drawImage(img, -w / 2, -h / 2, w, h)
+        }
+      } else if (l.kind === "text" && l.text) {
+        const fs = Math.max(10, (l.widthPct / 100) * W)
+        ctx.font = `600 ${fs}px ${l.fontFamily || "sans-serif"}`
+        ctx.fillStyle = l.color || "#111111"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText(l.text, 0, 0)
+      }
+      ctx.restore()
+    }
+    try {
+      return canvas.toDataURL("image/png")
+    } catch {
+      return null
+    }
+  }
+
   // ---- pointer gestures (move / resize / rotate) --------------------------
   const onPointerMove = useCallback((e: PointerEvent) => {
     const g = gesture.current
@@ -297,6 +363,20 @@ export function Studio() {
     return () => window.removeEventListener("keydown", onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, view])
+
+  // Build the front/back textures for the 3D preview when it's open.
+  useEffect(() => {
+    if (mode !== "preview" || !garment) return
+    let on = true
+    ;(async () => {
+      const [front, back] = await Promise.all([compositeView("front"), compositeView("back")])
+      if (on) setPreview({ front, back })
+    })()
+    return () => {
+      on = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, garment, placements])
 
   const price = garment
     ? computePrice(garment.basePrice, placements, settings)
@@ -397,26 +477,54 @@ export function Studio() {
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Canvas ------------------------------------------------------- */}
         <div>
-          {/* View tabs */}
-          <div className="flex gap-1 border-b border-border">
-            {garment.views.map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => {
-                  setView(v)
-                  setSelectedId(null)
-                }}
-                className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-                  v === view
-                    ? "border-foreground text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {VIEW_LABELS[v]}
-              </button>
-            ))}
+          {/* 2D / 3D toggle */}
+          <div className="mb-3 inline-flex rounded-full border border-border p-0.5 text-sm">
+            <button
+              type="button"
+              onClick={() => setMode("edit")}
+              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${
+                mode === "edit"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Design
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("preview")}
+              className={`rounded-full px-4 py-1.5 font-medium transition-colors ${
+                mode === "preview"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              3D preview
+            </button>
           </div>
+
+          {mode === "edit" ? (
+            <>
+              {/* View tabs */}
+              <div className="flex gap-1 border-b border-border">
+                {garment.views.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => {
+                      setView(v)
+                      setSelectedId(null)
+                    }}
+                    className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                      v === view
+                        ? "border-foreground text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {VIEW_LABELS[v]}
+                  </button>
+                ))}
+              </div>
 
           <div
             ref={stageRef}
@@ -536,9 +644,22 @@ export function Studio() {
             })}
           </div>
 
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            Drag a design onto the shirt, then drag to move · corner to resize · top dot to rotate.
-          </p>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Drag a design onto the shirt, then drag to move · corner to resize · top dot to
+                rotate.
+              </p>
+            </>
+          ) : (
+            <div>
+              <div className="mx-auto mt-1 aspect-[4/5] w-full max-w-md overflow-hidden rounded-2xl border border-border bg-muted/30">
+                <Preview3D colorHex={garmentColor} front={preview.front} back={preview.back} />
+              </div>
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Drag to spin · scroll or pinch to zoom · it spins on its own too. Front and back
+                show your design; color follows your pick.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Controls ----------------------------------------------------- */}
