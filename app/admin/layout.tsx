@@ -8,6 +8,7 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser"
 const TABS = [
   { href: "/admin", label: "Orders" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/events", label: "Events" },
   { href: "/admin/discounts", label: "Discounts" },
 ]
 
@@ -85,7 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </Link>
       </div>
 
-      <nav className="mt-6 flex gap-1 border-b border-border">
+      <nav className="mt-6 flex flex-wrap gap-1 border-b border-border">
         {TABS.map((tab) => {
           const isActive =
             tab.href === "/admin" ? pathname === "/admin" : pathname.startsWith(tab.href)
