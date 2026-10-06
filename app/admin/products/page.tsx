@@ -63,6 +63,7 @@ export default function AdminProductsPage() {
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<FormState | null>(null)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
 
   async function loadProducts() {
     const supabase = getSupabaseBrowser()
@@ -149,6 +150,27 @@ export default function AdminProductsPage() {
       setError(err instanceof Error ? err.message : "Could not save the product.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleImageUpload(file: File) {
+    if (!form) return
+    setUploading(true)
+    setError(null)
+    try {
+      const supabase = getSupabaseBrowser()
+      const ext = (file.name.split(".").pop() || "png").toLowerCase()
+      const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from("images")
+        .upload(path, file, { upsert: true, cacheControl: "3600" })
+      if (upErr) throw upErr
+      const { data } = supabase.storage.from("images").getPublicUrl(path)
+      setForm((f) => (f ? { ...f, image: data.publicUrl } : f))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image upload failed.")
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -268,15 +290,42 @@ export default function AdminProductsPage() {
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-              <span className="font-medium">Image path</span>
-              <input
-                className={inputClass}
-                value={form.image}
-                onChange={(e) => setForm({ ...form, image: e.target.value })}
-                placeholder="/images/products/your-image.png"
-              />
-            </label>
+            <div className="flex flex-col gap-2 text-sm sm:col-span-2">
+              <span className="font-medium">Product image</span>
+              <div className="flex items-center gap-3">
+                {form.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={form.image}
+                    alt=""
+                    className="h-20 w-20 flex-none rounded-md border border-border object-cover"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 flex-none items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground">
+                    No image
+                  </div>
+                )}
+                <div className="flex flex-col gap-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleImageUpload(file)
+                    }}
+                    className="text-sm"
+                  />
+                  {uploading ? (
+                    <span className="text-xs text-muted-foreground">Uploading...</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      PNG or JPG. Uploaded to your store&apos;s image library.
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
             <label className="flex flex-col gap-1 text-sm sm:col-span-2">
               <span className="font-medium">Description</span>
               <textarea
