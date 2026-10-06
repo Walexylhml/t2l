@@ -7,7 +7,7 @@ import { CATEGORIES, getProducts } from '@/lib/products'
 export const metadata: Metadata = {
   title: 'Store',
   description:
-    'Shop Thoughts2Lyfe graphic tees, hoodies, and crewnecks — horror, pop culture, social cause, and original designs.',
+    'Shop Thoughts2Lyfe graphic tees, hoodies, and crewnecks — pop culture, social cause, original designs, and horror.',
   alternates: { canonical: '/store' },
 }
 

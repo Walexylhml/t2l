@@ -2,7 +2,7 @@ export const siteConfig = {
   name: 'Thoughts2Lyfe',
   tagline: 'Wear Your Thoughts. Live Your Life.',
   description:
-    'Thoughts2Lyfe is a streetwear label for horror heads, pop-culture obsessives, and people with something to say. Shop graphic tees and hoodies or design your own.',
+    'Thoughts2Lyfe is a streetwear label for pop-culture obsessives, social causes, original designs, and horror heads — people with something to say. Shop graphic tees and hoodies or design your own.',
   instagram: {
     handle: '@thoughts2lyfe',
     url: 'https://instagram.com/thoughts2lyfe',
