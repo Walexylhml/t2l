@@ -17,8 +17,8 @@ export function SiteFooter() {
         <div className="space-y-4 lg:col-span-2">
           <Wordmark className="text-3xl" />
           <p className="max-w-sm text-pretty leading-relaxed text-muted-foreground">
-            Streetwear for horror heads, pop-culture obsessives, and people with something to
-            say. Every piece starts as a thought. We just help it live.
+            Streetwear for pop-culture obsessives, social cause, unique designs, and people
+            with something to say. Every piece starts as a thought. We just help it live.
           </p>
           <a
             href={siteConfig.instagram.url}
