@@ -51,52 +51,70 @@ export async function createOrder(input: CreateOrderInput): Promise<string> {
   const supabase = getSupabaseAdmin();
   const { customer, items } = input;
 
-const { data: order, error: orderError } = await supabase
-  .from("orders")
-  .insert({
-    email: customer.email,
-    phone: customer.phone ?? null,
-    full_name: customer.fullName ?? null,
-    shipping_address: customer.shippingAddress ?? null,
-    amount_total: input.amountTotal,
-    currency: input.currency ?? "usd",
-    status: input.status ?? "pending",
-    stripe_session_id: input.stripeSessionId ?? null,
-  })
-  .select("id")
-  .single();
+  const { data: order, error: orderError } = await supabase
+    .from("orders")
+    .insert({
+      email: customer.email,
+      phone: customer.phone ?? null,
+      full_name: customer.fullName ?? null,
+      shipping_address: customer.shippingAddress ?? null,
+      amount_total: input.amountTotal,
+      currency: input.currency ?? "usd",
+      status: input.status ?? "pending",
+      stripe_session_id: input.stripeSessionId ?? null,
+    })
+    .select("id")
+    .single();
 
-if (orderError || !order) {
-  throw new Error(`Failed to create order: ${orderError?.message ?? "unknown"}`);
-}
-
-if (items.length > 0) {
-  const rows = items.map((i) => ({
-    order_id: order.id,
-    product_id: i.productId,
-    slug: i.slug ?? null,
-    name: i.name,
-    size: i.size ?? null,
-    image: i.image ?? null,
-    unit_amount: i.unitAmount,
-    quantity: i.quantity,
-  }));
-  const { error: itemsError } = await supabase.from("order_items").insert(rows);
-  if (itemsError) {
-    throw new Error(`Failed to create order items: ${itemsError.message}`);
+  if (orderError || !order) {
+    throw new Error(`Failed to create order: ${orderError?.message ?? "unknown"}`);
   }
+
+  if (items.length > 0) {
+    const rows = items.map((i) => ({
+      order_id: order.id,
+      product_id: i.productId,
+      slug: i.slug ?? null,
+      name: i.name,
+      size: i.size ?? null,
+      image: i.image ?? null,
+      unit_amount: i.unitAmount,
+      quantity: i.quantity,
+    }));
+    const { error: itemsError } = await supabase.from("order_items").insert(rows);
+    if (itemsError) {
+      throw new Error(`Failed to create order items: ${itemsError.message}`);
+    }
+  }
+
+  return order.id as string;
 }
 
-return order.id as string;
+// Link a Stripe Checkout Session to an order after the session is created.
+// Without this, the webhook (which matches on stripe_session_id) can never
+// find the order, so paid orders would stay stuck on "pending".
+export async function attachStripeSession(
+  orderId: string,
+  stripeSessionId: string
+): Promise<void> {
+  if (!orderId) return;
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase
+    .from("orders")
+    .update({ stripe_session_id: stripeSessionId })
+    .eq("id", orderId);
+  if (error) {
+    throw new Error(`Failed to attach Stripe session: ${error.message}`);
+  }
 }
 
 // Mark an order paid once Stripe confirms payment (called from the webhook).
 export async function markOrderPaid(stripeSessionId: string, paymentIntent?: string): Promise<void> {
   const supabase = getSupabaseAdmin();
   const { error } = await supabase
-  .from("orders")
-  .update({ status: "paid", stripe_payment_intent: paymentIntent ?? null })
-  .eq("stripe_session_id", stripeSessionId);
+    .from("orders")
+    .update({ status: "paid", stripe_payment_intent: paymentIntent ?? null })
+    .eq("stripe_session_id", stripeSessionId);
   if (error) {
     throw new Error(`Failed to mark order paid: ${error.message}`);
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createOrder, calcAmountTotal } from "@/lib/orders";
+import { createOrder, attachStripeSession, calcAmountTotal } from "@/lib/orders";
 import type { CheckoutLineItem, CheckoutCustomer } from "@/lib/orders";
 
 export const runtime = "nodejs";
@@ -14,24 +14,24 @@ export async function POST(request: Request) {
 
   if (!secretKey) {
     return NextResponse.json({ error: "Payments are not configured yet. Set STRIPE_SECRET_KEY (see SETUP.md)." }, { status: 503 });
-    }
+  }
 
   let body: { customer?: CheckoutCustomer; items?: CheckoutLineItem[] };
   try {
     body = await request.json();
-    } catch {
+  } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
-    }
+  }
 
   const customer = body.customer;
   const items = body.items ?? [];
 
   if (!customer?.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(customer.email)) {
     return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
-    }
+  }
   if (items.length === 0) {
     return NextResponse.json({ error: "Your cart is empty." }, { status: 400 });
-    }
+  }
 
   const amountTotal = calcAmountTotal(items);
   const stripe = new Stripe(secretKey);
@@ -39,10 +39,10 @@ export async function POST(request: Request) {
   let orderId: string | null = null;
   try {
     orderId = await createOrder({ customer, items, amountTotal, status: "pending" });
-    } catch (err) {
+  } catch (err) {
     console.error("[checkout] createOrder failed:", err);
     // Continue to payment even if the DB write fails, but log loudly.
-    }
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -56,18 +56,28 @@ export async function POST(request: Request) {
           product_data: {
             name: i.size ? `${i.name} (${i.size})` : i.name,
             images: i.image ? [i.image.startsWith("http") ? i.image : `${baseUrl}${i.image}`] : [],
-            },
           },
-        })),
+        },
+      })),
       phone_number_collection: { enabled: true },
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/checkout?canceled=1`,
       metadata: { orderId: orderId ?? "" },
-      });
+    });
+
+    // Link the order to this Stripe session so the webhook can find it later
+    // and flip the order to "paid". Without this, orders stay "pending".
+    if (orderId) {
+      try {
+        await attachStripeSession(orderId, session.id);
+      } catch (err) {
+        console.error("[checkout] attachStripeSession failed:", err);
+      }
+    }
 
     return NextResponse.json({ url: session.url });
-    } catch (err) {
+  } catch (err) {
     console.error("[checkout] Stripe session failed:", err);
     return NextResponse.json({ error: "Could not start checkout. Please try again." }, { status: 500 });
-    }
   }
+}
