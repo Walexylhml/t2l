@@ -1,8 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { getSupabaseBrowser } from "@/lib/supabase-browser"
 
 type OrderItem = {
@@ -62,10 +60,8 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: "bg-destructive/10 text-destructive",
 }
 
-export default function AdminPage() {
-  const router = useRouter()
+export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true)
-  const [authorized, setAuthorized] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
   const [error, setError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -76,30 +72,6 @@ export default function AdminPage() {
     async function load() {
       try {
         const supabase = getSupabaseBrowser()
-        const { data: sessionData } = await supabase.auth.getSession()
-        const session = sessionData.session
-
-        if (!session) {
-          router.replace("/login")
-          return
-        }
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("is_admin")
-          .eq("id", session.user.id)
-          .maybeSingle()
-
-        if (!profile?.is_admin) {
-          if (active) {
-            setAuthorized(false)
-            setLoading(false)
-          }
-          return
-        }
-
-        if (active) setAuthorized(true)
-
         const { data, error: ordersError } = await supabase
           .from("orders")
           .select(
@@ -122,7 +94,7 @@ export default function AdminPage() {
     return () => {
       active = false
     }
-  }, [router])
+  }, [])
 
   async function updateStatus(orderId: string, status: string) {
     setUpdatingId(orderId)
@@ -143,56 +115,24 @@ export default function AdminPage() {
   }
 
   if (loading) {
-    return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-5xl items-center justify-center px-4">
-        <p className="text-sm text-muted-foreground">Loading admin...</p>
-      </main>
-    )
-  }
-
-  if (!authorized) {
-    return (
-      <main className="mx-auto flex min-h-[60vh] w-full max-w-lg flex-col items-center justify-center px-4 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Admins only</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This area is for the store owner. Your account doesn&apos;t have admin access.
-        </p>
-        <Link
-          href="/"
-          className="mt-6 inline-flex rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-90"
-        >
-          Back to store
-        </Link>
-      </main>
-    )
+    return <p className="text-sm text-muted-foreground">Loading orders...</p>
   }
 
   const paidCount = orders.filter((o) => o.status === "paid").length
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-16">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Admin · Orders</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {orders.length} order{orders.length === 1 ? "" : "s"}
-            {paidCount ? ` · ${paidCount} paid awaiting fulfilment` : ""}
-          </p>
-        </div>
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center rounded-full border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
-        >
-          Back to store
-        </Link>
-      </div>
+    <div>
+      <p className="text-sm text-muted-foreground">
+        {orders.length} order{orders.length === 1 ? "" : "s"}
+        {paidCount ? ` · ${paidCount} paid awaiting fulfilment` : ""}
+      </p>
 
       {error ? (
-        <p className="mt-6 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+        <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
       ) : null}
 
       {orders.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-border px-4 py-12 text-center">
+        <div className="mt-6 rounded-lg border border-border px-4 py-12 text-center">
           <p className="text-sm text-muted-foreground">No orders yet.</p>
         </div>
       ) : null}
@@ -290,6 +230,6 @@ export default function AdminPage() {
           )
         })}
       </ul>
-    </main>
+    </div>
   )
 }
