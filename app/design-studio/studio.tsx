@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import dynamic from "next/dynamic"
 import { formatPrice } from "@/lib/products"
 import {
   getGarments,
@@ -22,16 +21,6 @@ import {
   type Placements,
 } from "@/lib/studio"
 
-// three.js lives only in the 3D preview; load it on demand (client-only) so it
-// stays out of the initial bundle and never runs during SSR.
-const Preview3D = dynamic(() => import("./preview3d").then((m) => m.Preview3D), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-      Loading 3D preview...
-    </div>
-  ),
-})
 
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -67,6 +56,121 @@ function GarmentSilhouette({ color }: { color: string }) {
         strokeWidth="2"
       />
     </svg>
+  )
+}
+
+// A real white garment photo recolored to `color`. The garment image is a white
+// blank on a transparent background; we lay a solid color behind it (masked to
+// the garment shape) and multiply the photo over it, so the fabric's highlights
+// and shadows survive the recolor. White keeps the garment as-is.
+function GarmentPhoto({
+  src,
+  color,
+  flip = false,
+}: {
+  src: string
+  color: string
+  flip?: boolean
+}) {
+  const mask = {
+    WebkitMaskImage: `url("${src}")`,
+    maskImage: `url("${src}")`,
+    WebkitMaskSize: "contain",
+    maskSize: "contain",
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+    WebkitMaskPosition: "center",
+    maskPosition: "center",
+  } as const
+  return (
+    <div
+      className="absolute inset-0"
+      style={{ isolation: "isolate", transform: flip ? "scaleX(-1)" : undefined }}
+    >
+      <div className="absolute inset-0" style={{ background: color, ...mask }} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        className="absolute inset-0 h-full w-full object-contain"
+        style={{ mixBlendMode: "multiply" }}
+      />
+    </div>
+  )
+}
+
+// The preview tab: the real selected garment, recolored, turning through its
+// angles (front -> side -> back -> mirrored side). Front and back frames show
+// the composed design. Drag to scrub; it also turns on its own.
+function GarmentRotator({
+  garment,
+  color,
+  front,
+  back,
+}: {
+  garment: Garment
+  color: string
+  front: string | null
+  back: string | null
+}) {
+  const frames = (
+    [
+      { src: garment.imageFront, flip: false, design: front },
+      { src: garment.imageArm, flip: false, design: null },
+      { src: garment.imageBack, flip: false, design: back },
+      { src: garment.imageArm, flip: true, design: null },
+    ] as { src: string | null; flip: boolean; design: string | null }[]
+  ).filter((f): f is { src: string; flip: boolean; design: string | null } => Boolean(f.src))
+
+  const [i, setI] = useState(0)
+  const [spin, setSpin] = useState(true)
+  const drag = useRef<{ x: number; i: number } | null>(null)
+
+  useEffect(() => {
+    if (!spin || frames.length < 2) return
+    const t = setInterval(() => setI((v) => (v + 1) % frames.length), 1500)
+    return () => clearInterval(t)
+  }, [spin, frames.length])
+
+  if (frames.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <div className="h-full w-full max-w-[78%]">
+          <GarmentSilhouette color={color} />
+        </div>
+      </div>
+    )
+  }
+
+  const f = frames[Math.min(i, frames.length - 1)]
+  return (
+    <div
+      className="relative h-full w-full cursor-ew-resize touch-none select-none"
+      onPointerDown={(e) => {
+        setSpin(false)
+        drag.current = { x: e.clientX, i }
+        ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current
+        if (!d) return
+        const step = Math.round((e.clientX - d.x) / 40)
+        setI((((d.i + step) % frames.length) + frames.length) % frames.length)
+      }}
+      onPointerUp={() => {
+        drag.current = null
+      }}
+    >
+      <GarmentPhoto src={f.src} color={color} flip={f.flip} />
+      {f.design ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={f.design}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+        />
+      ) : null}
+    </div>
   )
 }
 
@@ -546,8 +650,7 @@ export function Studio() {
           >
             {/* Garment */}
             {mockup ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={mockup} alt="" className="absolute inset-0 h-full w-full object-contain" />
+              <GarmentPhoto src={mockup} color={garmentColor} />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center p-6">
                 <div className="h-full w-full max-w-[78%]">
@@ -652,11 +755,16 @@ export function Studio() {
           ) : (
             <div>
               <div className="mx-auto mt-1 aspect-[4/5] w-full max-w-md overflow-hidden rounded-2xl border border-border bg-muted/30">
-                <Preview3D colorHex={garmentColor} front={preview.front} back={preview.back} />
+                <GarmentRotator
+                  garment={garment}
+                  color={garmentColor}
+                  front={preview.front}
+                  back={preview.back}
+                />
               </div>
               <p className="mt-2 text-center text-xs text-muted-foreground">
-                Drag to spin · scroll or pinch to zoom · it spins on its own too. Front and back
-                show your design; color follows your pick.
+                Drag to turn the shirt · it also turns on its own. Front and back show your design;
+                color follows your pick.
               </p>
             </div>
           )}
