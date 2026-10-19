@@ -32,7 +32,7 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   })
 }
 
-const FILTERS: ("all" | GarmentView)[] = ["all", "front", "back", "arm"]
+const FILTERS: ("all" | GarmentView)[] = ["all", "front", "back", "left_arm", "right_arm"]
 const FONT_OPTIONS = [
   { label: "Display", value: "var(--font-anton), system-ui, sans-serif" },
   { label: "Sans", value: "var(--font-inter), system-ui, sans-serif" },
@@ -43,6 +43,23 @@ const FONT_OPTIONS = [
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
 }
+
+// The blank garment photo for a given view.
+function garmentImageFor(garment: Garment, view: GarmentView): string | null {
+  switch (view) {
+    case "front":
+      return garment.imageFront
+    case "back":
+      return garment.imageBack
+    case "left_arm":
+      return garment.imageLeftArm
+    case "right_arm":
+      return garment.imageRightArm
+  }
+}
+
+// Order the garment turns through in the preview, for a natural rotation feel.
+const PREVIEW_ORDER: GarmentView[] = ["front", "left_arm", "back", "right_arm"]
 
 // A simple generic t-shirt silhouette used as a placeholder garment. Tinted by
 // the chosen color; swapped for a real mockup once one is uploaded in admin.
@@ -99,42 +116,36 @@ function GarmentPhoto({
   )
 }
 
-// The preview tab: the real selected garment, recolored, turning through its
-// angles (front -> side -> back -> mirrored side). Front and back frames show
-// the composed design. Drag to scrub; it also turns on its own.
-function GarmentRotator({
+// The preview tab: a smooth, clean turntable of the REAL garment photos
+// (front, left arm, back, right arm), recolored, with the customer's design
+// composited onto each view. Frames crossfade — no hard jump-cuts — and the
+// shirt eases through its angles on its own; drag or tap an angle to steer.
+function GarmentPreview({
   garment,
   color,
-  front,
-  back,
+  designs,
 }: {
   garment: Garment
   color: string
-  front: string | null
-  back: string | null
+  designs: Record<GarmentView, string | null>
 }) {
-  const frames = (
-    [
-      { src: garment.imageFront, flip: false, design: front },
-      { src: garment.imageArm, flip: false, design: null },
-      { src: garment.imageBack, flip: false, design: back },
-      { src: garment.imageArm, flip: true, design: null },
-    ] as { src: string | null; flip: boolean; design: string | null }[]
-  ).filter((f): f is { src: string; flip: boolean; design: string | null } => Boolean(f.src))
+  const frames = PREVIEW_ORDER.filter(
+    (v) => garment.views.includes(v) && garmentImageFor(garment, v)
+  ).map((v) => ({ view: v, src: garmentImageFor(garment, v) as string, design: designs[v] }))
 
   const [i, setI] = useState(0)
   const [spin, setSpin] = useState(true)
-  const drag = useRef<{ x: number; i: number } | null>(null)
+  const drag = useRef<{ x: number; i: number; moved: boolean } | null>(null)
 
   useEffect(() => {
     if (!spin || frames.length < 2) return
-    const t = setInterval(() => setI((v) => (v + 1) % frames.length), 1500)
+    const t = setInterval(() => setI((v) => (v + 1) % frames.length), 2600)
     return () => clearInterval(t)
   }, [spin, frames.length])
 
   if (frames.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
+      <div className="flex aspect-[4/5] w-full items-center justify-center rounded-2xl border border-border bg-muted/30 p-6">
         <div className="h-full w-full max-w-[78%]">
           <GarmentSilhouette color={color} />
         </div>
@@ -142,33 +153,69 @@ function GarmentRotator({
     )
   }
 
-  const f = frames[Math.min(i, frames.length - 1)]
+  const active = Math.min(i, frames.length - 1)
   return (
-    <div
-      className="relative h-full w-full cursor-ew-resize touch-none select-none"
-      onPointerDown={(e) => {
-        setSpin(false)
-        drag.current = { x: e.clientX, i }
-        ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
-      }}
-      onPointerMove={(e) => {
-        const d = drag.current
-        if (!d) return
-        const step = Math.round((e.clientX - d.x) / 40)
-        setI((((d.i + step) % frames.length) + frames.length) % frames.length)
-      }}
-      onPointerUp={() => {
-        drag.current = null
-      }}
-    >
-      <GarmentPhoto src={f.src} color={color} flip={f.flip} />
-      {f.design ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={f.design}
-          alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
-        />
+    <div className="w-full">
+      <div
+        className="relative aspect-[4/5] w-full cursor-ew-resize touch-none select-none overflow-hidden rounded-2xl border border-border bg-muted/30"
+        onPointerDown={(e) => {
+          drag.current = { x: e.clientX, i: active, moved: false }
+          ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
+        }}
+        onPointerMove={(e) => {
+          const d = drag.current
+          if (!d) return
+          const step = Math.round((e.clientX - d.x) / 44)
+          if (step !== 0) {
+            d.moved = true
+            setSpin(false)
+            setI((((d.i + step) % frames.length) + frames.length) % frames.length)
+          }
+        }}
+        onPointerUp={() => {
+          drag.current = null
+        }}
+      >
+        {frames.map((f, idx) => (
+          <div
+            key={f.view}
+            className="absolute inset-0 transition-opacity duration-500 ease-out"
+            style={{ opacity: idx === active ? 1 : 0 }}
+            aria-hidden={idx === active ? undefined : true}
+          >
+            <GarmentPhoto src={f.src} color={color} />
+            {f.design ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={f.design}
+                alt=""
+                className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+              />
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      {frames.length > 1 ? (
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+          {frames.map((f, idx) => (
+            <button
+              key={f.view}
+              type="button"
+              onClick={() => {
+                setSpin(false)
+                setI(idx)
+              }}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                idx === active
+                  ? "bg-foreground text-background"
+                  : "border border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {VIEW_LABELS[f.view]}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   )
@@ -203,10 +250,12 @@ export function Studio() {
   const [notice, setNotice] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [mode, setMode] = useState<"edit" | "preview">("edit")
-  const [preview, setPreview] = useState<{ front: string | null; back: string | null }>({
+  const [preview, setPreview] = useState<Record<GarmentView, string | null>>(() => ({
     front: null,
     back: null,
-  })
+    left_arm: null,
+    right_arm: null,
+  }))
 
   const stageRef = useRef<HTMLDivElement>(null)
   const stageWidthRef = useRef<number>(400)
@@ -255,8 +304,7 @@ export function Studio() {
   }
 
   const layers = garment ? placements[view] : []
-  const mockup =
-    garment && (view === "front" ? garment.imageFront : view === "back" ? garment.imageBack : garment.imageArm)
+  const mockup = garment ? garmentImageFor(garment, view) : null
 
   const q = search.trim().toLowerCase()
   const visibleDesigns = designs.filter((d) => {
@@ -468,13 +516,19 @@ export function Studio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, view])
 
-  // Build the front/back textures for the 3D preview when it's open.
+  // Composite each view's design onto a transparent layer for the preview
+  // turntable when it's open.
   useEffect(() => {
     if (mode !== "preview" || !garment) return
     let on = true
     ;(async () => {
-      const [front, back] = await Promise.all([compositeView("front"), compositeView("back")])
-      if (on) setPreview({ front, back })
+      const [front, back, left_arm, right_arm] = await Promise.all([
+        compositeView("front"),
+        compositeView("back"),
+        compositeView("left_arm"),
+        compositeView("right_arm"),
+      ])
+      if (on) setPreview({ front, back, left_arm, right_arm })
     })()
     return () => {
       on = false
@@ -754,17 +808,12 @@ export function Studio() {
             </>
           ) : (
             <div>
-              <div className="mx-auto mt-1 aspect-[4/5] w-full max-w-md overflow-hidden rounded-2xl border border-border bg-muted/30">
-                <GarmentRotator
-                  garment={garment}
-                  color={garmentColor}
-                  front={preview.front}
-                  back={preview.back}
-                />
+              <div className="mx-auto mt-1 w-full max-w-md">
+                <GarmentPreview garment={garment} color={garmentColor} designs={preview} />
               </div>
               <p className="mt-2 text-center text-xs text-muted-foreground">
-                Drag to turn the shirt · it also turns on its own. Front and back show your design;
-                color follows your pick.
+                Tap an angle or drag to turn · it also eases through the views on its own. Every
+                side shows your design; color follows your pick.
               </p>
             </div>
           )}

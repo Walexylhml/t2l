@@ -28,7 +28,7 @@ export type PlacedLayer = {
 export type Placements = Record<GarmentView, PlacedLayer[]>
 
 export function emptyPlacements(): Placements {
-  return { front: [], back: [], arm: [] }
+  return { front: [], back: [], left_arm: [], right_arm: [] }
 }
 
 export function countLayers(placements: Placements): number {
@@ -47,7 +47,8 @@ export type PrintArea = { xPct: number; yPct: number; wPct: number; hPct: number
 export const PRINT_AREAS: Record<GarmentView, PrintArea> = {
   front: { xPct: 50, yPct: 46, wPct: 46, hPct: 52 },
   back: { xPct: 50, yPct: 44, wPct: 50, hPct: 56 },
-  arm: { xPct: 50, yPct: 50, wPct: 24, hPct: 60 },
+  left_arm: { xPct: 50, yPct: 50, wPct: 24, hPct: 60 },
+  right_arm: { xPct: 50, yPct: 50, wPct: 24, hPct: 60 },
 }
 
 export type PriceLine = { label: string; amount: number }
@@ -61,7 +62,8 @@ export type PriceBreakdown = {
 const VIEW_LABEL: Record<GarmentView, string> = {
   front: "Front print",
   back: "Back print",
-  arm: "Arm print",
+  left_arm: "Left arm print",
+  right_arm: "Right arm print",
 }
 
 // Price = garment base + a print fee for each VIEW that has at least one design
@@ -75,7 +77,9 @@ export function computePrice(
   const feeByView: Record<GarmentView, number> = {
     front: settings.printFeeFront,
     back: settings.printFeeBack,
-    arm: settings.printFeeArm,
+    // Each arm shares the single configurable arm print fee.
+    left_arm: settings.printFeeArm,
+    right_arm: settings.printFeeArm,
   }
 
   const lines: PriceLine[] = []

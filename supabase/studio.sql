@@ -19,12 +19,13 @@ create table if not exists public.garments (
   slug text not null unique,
   name text not null,
   base_price integer not null default 0,              -- cents
-  views text[] not null default '{front,back,arm}',   -- which views it supports
+  views text[] not null default '{front,back,left_arm,right_arm}', -- which views it supports
   sizes text[] not null default '{S,M,L,XL,2XL}',
   colors text[] not null default '{}',                -- optional
   image_front text,
   image_back text,
-  image_arm text,
+  image_left_arm text,
+  image_right_arm text,
   active boolean not null default true,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
@@ -58,7 +59,7 @@ create table if not exists public.designs (
   name text not null,
   image text not null,                 -- public URL from the images bucket
   placement text not null default 'any'
-    check (placement in ('front', 'back', 'arm', 'any')),
+    check (placement in ('front', 'back', 'left_arm', 'right_arm', 'any')),
   active boolean not null default true,
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),

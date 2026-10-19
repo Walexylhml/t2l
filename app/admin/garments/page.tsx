@@ -15,12 +15,13 @@ type GarmentRow = {
   colors: string[] | null
   image_front: string | null
   image_back: string | null
-  image_arm: string | null
+  image_left_arm: string | null
+  image_right_arm: string | null
   active: boolean
   sort_order: number
 }
 
-type ImageSlot = "front" | "back" | "arm"
+type ImageSlot = "front" | "back" | "left_arm" | "right_arm"
 
 type FormState = {
   id: string | null
@@ -32,7 +33,8 @@ type FormState = {
   colorsText: string
   imageFront: string
   imageBack: string
-  imageArm: string
+  imageLeftArm: string
+  imageRightArm: string
   active: boolean
 }
 
@@ -46,7 +48,8 @@ const EMPTY_FORM: FormState = {
   colorsText: "",
   imageFront: "",
   imageBack: "",
-  imageArm: "",
+  imageLeftArm: "",
+  imageRightArm: "",
   active: true,
 }
 
@@ -148,7 +151,8 @@ export default function AdminGarmentsPage() {
       colorsText: (g.colors ?? []).join(", "),
       imageFront: g.image_front ?? "",
       imageBack: g.image_back ?? "",
-      imageArm: g.image_arm ?? "",
+      imageLeftArm: g.image_left_arm ?? "",
+      imageRightArm: g.image_right_arm ?? "",
       active: g.active,
     })
   }
@@ -179,7 +183,8 @@ export default function AdminGarmentsPage() {
         if (!f) return f
         if (slot === "front") return { ...f, imageFront: data.publicUrl }
         if (slot === "back") return { ...f, imageBack: data.publicUrl }
-        return { ...f, imageArm: data.publicUrl }
+        if (slot === "left_arm") return { ...f, imageLeftArm: data.publicUrl }
+        return { ...f, imageRightArm: data.publicUrl }
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Image upload failed.")
@@ -198,7 +203,8 @@ export default function AdminGarmentsPage() {
       if (!form.name.trim()) throw new Error("Name is required.")
       if (!slug) throw new Error("Slug is required.")
       if (!Number.isFinite(basePrice) || basePrice < 0) throw new Error("Enter a valid base price.")
-      if (form.views.length === 0) throw new Error("Pick at least one view (front, back, or arm).")
+      if (form.views.length === 0)
+        throw new Error("Pick at least one view (front, back, left arm, or right arm).")
 
       const row = {
         slug,
@@ -209,7 +215,8 @@ export default function AdminGarmentsPage() {
         colors: parseList(form.colorsText),
         image_front: form.imageFront.trim() || null,
         image_back: form.imageBack.trim() || null,
-        image_arm: form.imageArm.trim() || null,
+        image_left_arm: form.imageLeftArm.trim() || null,
+        image_right_arm: form.imageRightArm.trim() || null,
         active: form.active,
       }
 
@@ -501,10 +508,11 @@ export default function AdminGarmentsPage() {
               <span className="text-xs text-muted-foreground">Comma separated.</span>
             </label>
 
-            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-3">
+            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
               {imageSlot("front", form.imageFront)}
               {imageSlot("back", form.imageBack)}
-              {imageSlot("arm", form.imageArm)}
+              {imageSlot("left_arm", form.imageLeftArm)}
+              {imageSlot("right_arm", form.imageRightArm)}
             </div>
 
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
