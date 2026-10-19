@@ -7,14 +7,15 @@ import { createClient } from "@supabase/supabase-js"
 // ---------------------------------------------------------------------------
 
 // Where a design can be placed. "any" designs fit on any view.
-export const PLACEMENTS = ["front", "back", "arm"] as const
+export const PLACEMENTS = ["front", "back", "left_arm", "right_arm"] as const
 export type Placement = (typeof PLACEMENTS)[number]
 export type DesignPlacement = Placement | "any"
 
 export const PLACEMENT_LABELS: Record<DesignPlacement, string> = {
   front: "Front",
   back: "Back",
-  arm: "Arm",
+  left_arm: "Left arm",
+  right_arm: "Right arm",
   any: "Any",
 }
 
@@ -39,7 +40,9 @@ const supabase =
   supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
 
 function toDesignPlacement(value: string): DesignPlacement {
-  return (["front", "back", "arm", "any"] as const).includes(value as DesignPlacement)
+  return (["front", "back", "left_arm", "right_arm", "any"] as const).includes(
+    value as DesignPlacement
+  )
     ? (value as DesignPlacement)
     : "any"
 }
