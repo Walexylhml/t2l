@@ -27,9 +27,142 @@ function formatEventDate(iso: string | null): string {
   })
 }
 
+function EventCard({ ev, onOpenImage }: { ev: EventRow; onOpenImage: (src: string, alt: string) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  // Show the toggle when there's meaningfully long copy or perks to reveal.
+  const hasMore = (ev.description?.length ?? 0) > 180 || Boolean(ev.perks)
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="grid gap-0 sm:grid-cols-[minmax(0,320px)_1fr]">
+        {/* Image: fixed frame, any aspect ratio fills it consistently */}
+        {ev.image ? (
+          <button
+            type="button"
+            onClick={() => onOpenImage(ev.image as string, ev.title)}
+            aria-label={`View full image for ${ev.title}`}
+            className="group relative aspect-[4/3] w-full overflow-hidden bg-muted sm:aspect-auto sm:h-full"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={ev.image}
+              alt={ev.title}
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            />
+            <span className="absolute bottom-2 right-2 rounded-full bg-background/80 px-2.5 py-1 text-xs font-medium opacity-0 backdrop-blur transition-opacity group-hover:opacity-100">
+              Tap to expand
+            </span>
+          </button>
+        ) : (
+          <div className="flex aspect-[4/3] w-full items-center justify-center bg-muted text-sm text-muted-foreground sm:aspect-auto sm:h-full">
+            Thoughts2Lyfe
+          </div>
+        )}
+
+        {/* Details */}
+        <div className="flex flex-col p-6 sm:p-7">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{ev.title}</h2>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
+            <span>{formatEventDate(ev.event_at)}</span>
+            {ev.venue ? <span>{ev.venue}</span> : null}
+          </div>
+
+          {ev.description ? (
+            <div
+              className={`mt-4 whitespace-pre-line text-sm leading-relaxed text-foreground/90 ${
+                expanded ? "" : "line-clamp-4"
+              }`}
+            >
+              {ev.description}
+            </div>
+          ) : null}
+
+          {/* Perks live under "show more", as before */}
+          {expanded && ev.perks ? (
+            <div className="mt-4 rounded-xl bg-muted px-4 py-3 text-sm">
+              <span className="font-medium">Perks: </span>
+              <span className="text-foreground/90">{ev.perks}</span>
+            </div>
+          ) : null}
+
+          {hasMore ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="mt-4 self-start text-sm font-medium text-foreground underline underline-offset-4 hover:opacity-70"
+            >
+              {expanded ? "Show less" : "Show more"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function Lightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string
+  alt: string
+  onClose: () => void
+}) {
+  const [zoomed, setZoomed] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
+    }
+    window.addEventListener("keydown", onKey)
+    document.body.style.overflow = "hidden"
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      document.body.style.overflow = ""
+    }
+  }, [onClose])
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-2xl leading-none text-white hover:bg-white/20"
+      >
+        &times;
+      </button>
+      <div className={`overflow-auto ${zoomed ? "h-full w-full" : ""}`} onClick={(e) => e.stopPropagation()}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={alt}
+          onClick={() => setZoomed((v) => !v)}
+          className={
+            zoomed
+              ? "max-w-none cursor-zoom-out"
+              : "mx-auto max-h-[85vh] max-w-full cursor-zoom-in object-contain"
+          }
+        />
+      </div>
+      <p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/70">
+        {zoomed ? "Click image to zoom out" : "Click image to zoom in · Esc to close"}
+      </p>
+    </div>
+  )
+}
+
 export default function EventsPage() {
   const [loading, setLoading] = useState(true)
   const [events, setEvents] = useState<EventRow[]>([])
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null)
 
   useEffect(() => {
     let active = true
@@ -78,38 +211,20 @@ export default function EventsPage() {
           </a>
         </div>
       ) : (
-        <div className="mt-12 flex flex-col gap-10">
+        <div className="mt-12 flex flex-col gap-8">
           {events.map((ev) => (
-            <article
+            <EventCard
               key={ev.id}
-              className="overflow-hidden rounded-2xl border border-border"
-            >
-              {ev.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={ev.image} alt={ev.title} className="w-full object-cover" />
-              ) : null}
-              <div className="p-6 sm:p-8">
-                <h2 className="text-2xl font-semibold tracking-tight">{ev.title}</h2>
-                <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted-foreground">
-                  <span>{formatEventDate(ev.event_at)}</span>
-                  {ev.venue ? <span>{ev.venue}</span> : null}
-                </div>
-                {ev.description ? (
-                  <div className="mt-4 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
-                    {ev.description}
-                  </div>
-                ) : null}
-                {ev.perks ? (
-                  <div className="mt-5 rounded-xl bg-muted px-4 py-3 text-sm">
-                    <span className="font-medium">Perks: </span>
-                    <span className="text-foreground/90">{ev.perks}</span>
-                  </div>
-                ) : null}
-              </div>
-            </article>
+              ev={ev}
+              onOpenImage={(src, alt) => setLightbox({ src, alt })}
+            />
           ))}
         </div>
       )}
+
+      {lightbox ? (
+        <Lightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />
+      ) : null}
     </main>
   )
 }
