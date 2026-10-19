@@ -7,13 +7,14 @@ import { createClient } from "@supabase/supabase-js"
 // getters only ever return ACTIVE garments to shoppers.
 // ---------------------------------------------------------------------------
 
-export const GARMENT_VIEWS = ["front", "back", "arm"] as const
+export const GARMENT_VIEWS = ["front", "back", "left_arm", "right_arm"] as const
 export type GarmentView = (typeof GARMENT_VIEWS)[number]
 
 export const VIEW_LABELS: Record<GarmentView, string> = {
   front: "Front",
   back: "Back",
-  arm: "Arm",
+  left_arm: "Left arm",
+  right_arm: "Right arm",
 }
 
 export type Garment = {
@@ -27,7 +28,8 @@ export type Garment = {
   colors: string[]
   imageFront: string | null
   imageBack: string | null
-  imageArm: string | null
+  imageLeftArm: string | null
+  imageRightArm: string | null
 }
 
 type GarmentRow = {
@@ -40,7 +42,8 @@ type GarmentRow = {
   colors: string[] | null
   image_front: string | null
   image_back: string | null
-  image_arm: string | null
+  image_left_arm: string | null
+  image_right_arm: string | null
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -63,7 +66,8 @@ function toGarment(row: GarmentRow): Garment {
     colors: row.colors ?? [],
     imageFront: row.image_front,
     imageBack: row.image_back,
-    imageArm: row.image_arm,
+    imageLeftArm: row.image_left_arm,
+    imageRightArm: row.image_right_arm,
   }
 }
 
