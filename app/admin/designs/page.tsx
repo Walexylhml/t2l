@@ -77,7 +77,7 @@ export default function AdminDesignsPage() {
       id: d.id,
       name: d.name,
       image: d.image,
-      placement: (["front", "back", "arm", "any"].includes(d.placement)
+      placement: (["front", "back", "left_arm", "right_arm", "any"].includes(d.placement)
         ? d.placement
         : "any") as DesignPlacement,
       active: d.active,
@@ -316,7 +316,7 @@ export default function AdminDesignsPage() {
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {PLACEMENT_LABELS[
-                    (["front", "back", "arm", "any"].includes(d.placement)
+                    (["front", "back", "left_arm", "right_arm", "any"].includes(d.placement)
                       ? d.placement
                       : "any") as DesignPlacement
                   ]}
