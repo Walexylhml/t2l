@@ -186,3 +186,22 @@
     animation: none;
   }
 }
+
+/* =========================================================================
+   Hero sizing — keep the CTAs above the fold on short laptop screens without
+   touching mobile or tall desktop monitors.
+   - The headline scales down smoothly as the viewport gets shorter (12vh),
+     but never grows past its normal clamp, so tall monitors keep the full size.
+   - On short, wide (laptop) screens we also tighten the top padding.
+   These rules are intentionally outside Tailwind's layers so they win over the
+   utility classes on the hero without needing !important.
+   ========================================================================= */
+.hero-title {
+  font-size: min(clamp(3.25rem, 12vw, 9rem), 12vh);
+}
+
+@media (min-width: 1024px) and (max-height: 900px) {
+  .hero-body {
+    padding-top: 2.5rem;
+  }
+}
