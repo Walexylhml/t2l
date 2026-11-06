@@ -143,6 +143,7 @@ insert into public.designs (name, image, placement, sort_order)
 select v.name, v.image, v.placement, v.sort_order
 from (values
   ('Black College Culture', '/images/designs/black-college-culture.png', 'front', 1),
-  ('The Yard Is the Original Group Chat', '/images/designs/the-yard-group-chat.png', 'any', 2)
+  ('The Yard Is the Original Group Chat', '/images/designs/the-yard-group-chat.png', 'any', 2),
+  ('Amir Is Still Unhoused', '/images/designs/amir-is-still-unhoused.png', 'back', 3)
 ) as v(name, image, placement, sort_order)
 where not exists (select 1 from public.designs d where d.name = v.name);
