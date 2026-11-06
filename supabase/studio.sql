@@ -133,3 +133,17 @@ insert into public.garments (slug, name, base_price, sizes, sort_order) values
   ('adult-hoodie',              'Adult Hoodie',               5000, '{S,M,L,XL,2XL}', 7),
   ('youth-hoodie',              'Youth Hoodie',               4500, '{XS,S,M,L,XL}',  8)
 on conflict (slug) do nothing;
+
+-- -------------------------------------------------------------------------
+-- 5. Seed starter designs for the Design Studio library. Idempotent by name.
+--    Images are static files in /public/images/designs (deployed with the app),
+--    so no storage upload is needed. Edit placement/active from admin Designs.
+-- -------------------------------------------------------------------------
+insert into public.designs (name, image, placement, sort_order)
+select v.name, v.image, v.placement, v.sort_order
+from (values
+  ('Black College Culture', '/images/designs/black-college-culture.png', 'front', 1),
+  ('The Yard Is the Original Group Chat', '/images/designs/the-yard-group-chat.png', 'any', 2),
+  ('Amir Is Still Unhoused', '/images/designs/amir-is-still-unhoused.png', 'back', 3)
+) as v(name, image, placement, sort_order)
+where not exists (select 1 from public.designs d where d.name = v.name);
