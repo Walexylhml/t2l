@@ -19,11 +19,7 @@ export function Hero() {
       />
       <div
         aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-gradient-to-t from-background/40 via-transparent to-background/15"
-      />
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 -z-10 bg-[radial-gradient(130%_100%_at_0%_100%,var(--background)_20%,transparent_62%)]"
+        className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/70 to-background/20"
       />
       <div
         aria-hidden="true"
