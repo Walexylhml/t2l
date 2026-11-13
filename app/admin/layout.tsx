@@ -14,10 +14,14 @@ const TABS = [
   { href: "/admin/discounts", label: "Discounts" },
 ]
 
+// Only super admins see this tab.
+const SUPER_TAB = { href: "/admin/admins", label: "Admins" }
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [state, setState] = useState<"loading" | "denied" | "ok">("loading")
+  const [isSuper, setIsSuper] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -35,11 +39,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select("is_admin")
+          .select("is_admin, is_super_admin")
           .eq("id", session.user.id)
           .maybeSingle()
 
-        if (active) setState(profile?.is_admin ? "ok" : "denied")
+        if (active) {
+          setIsSuper(Boolean(profile?.is_super_admin))
+          setState(profile?.is_admin ? "ok" : "denied")
+        }
       } catch {
         if (active) setState("denied")
       }
@@ -89,7 +96,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       <nav className="mt-6 flex flex-wrap gap-1 border-b border-border">
-        {TABS.map((tab) => {
+        {(isSuper ? [...TABS, SUPER_TAB] : TABS).map((tab) => {
           const isActive =
             tab.href === "/admin" ? pathname === "/admin" : pathname.startsWith(tab.href)
           return (
